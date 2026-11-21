@@ -21,7 +21,7 @@ cb_install_generic_appimage() {
     mkdir -p -- "$dest"
     local new_file="$dest/.application.AppImage.new.$$"
     cp -- "$source" "$new_file"
-    chmod 755 "&new_file"
+    chmod 755 "$new_file"
     mv -f -- "$new_file" "$dest/application.AppImage"
 
     launcher="$CB_BIN/.$id.new.$$"

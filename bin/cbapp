@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cloudberry Pi AppPilot - user-local application manager.
-set -Eeeu pipefail
+set -Eeuo pipefail
 umask 077
 
 SOURCE_PATH="${BASH_SOURCE[0]}"
@@ -256,8 +256,8 @@ cb_main() {
             ;;
         *)
             action="${1:-help}"
-        shift || true
-        ;;
+            shift || true
+            ;;
     esac
 
     case "${action,,}" in
