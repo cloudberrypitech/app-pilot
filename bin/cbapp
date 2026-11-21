@@ -1,0 +1,288 @@
+#!/usr/bin/env bash
+# Cloudberry Pi AppPilot - user-local application manager.
+set -Eeeu pipefail
+umask 077
+
+SOURCE_PATH="${BASH_SOURCE[0]}"
+if command -v readlink >/dev/null 2>&1; then
+    RESOLVED_PATH="$(readlink -f -- "$SOURCE_PATH" 2>/dev/null || printf '%s' "$SOURCE_PATH")"
+else
+    RESOLVED_PATH="$SOURCE_PATH"
+fi
+CB_ROOT="${CBAPP_ROOT:-$(cd -- "$(dirname -- "$RESOLVED_PATH")/.." && pwd -P)}"
+
+for library in core.sh gimp.sh jetbrains.sh turbowarp.sh appimage.sh; do
+    [[ -r "$CB_ROOT/lib/$library" ]] || {
+        printf '[FAIL] AppPilot library is missing: %s/lib/%s\n' "$CB_ROOT" "$library" >&2
+        exit 1
+    }
+    # shellcheck source=/dev/null
+    source "$CB_ROOT/lib/$library"
+done
+
+trap 'cb_cleanup' EXIT
+trap 'cb_on_error "$LINENO" "$BASH_COMMAND"' ERR
+
+cb_help() {
+    cat <<'HELP'
+Cloudberry Pi AppPilot
+One command. Your applications. Your control.
+
+Usage:
+  cbapp <command> [application] [options]
+
+Commands:
+  install <app>              Install an application for the current user.
+  install appimage FILE NAME Install a local AppImage as an application.
+  update <app>               Update an application using its official source.
+  remove <app>               Remove AppPilot-managed application files.
+  list                       List supported catalogue entries.
+  status                     Show AppPilot-managed installations.
+  doctor                     Check architecture, commands and user-local paths.
+  self-uninstall             Remove AppPilot itself (not installed applications).
+  version                    Show AppPilot version.
+  help                       Show this help.
+
+Catalogue:
+  gimp                       GIMP for 64-bit ARM; official AppImage or user Flatpak.
+  jetbrains                  JetBrains Toolbox for Linux ARM64.
+  turbowarp                  TurboWarp Desktop for Linux ARM64.
+  appimage                   Install a local .AppImage file.
+  android-studio             Explain official Linux ARM64 support status.
+
+Compatibility aliases (installed by install.sh):
+  app-install gimp           Equivalent to: cbapp install gimp
+  app-uninstall gimp         Equivalent to: cbapp remove gimp
+
+Examples:
+  cbapp install gimp
+  cbapp install jetbrains
+  cbapp install turbowarp
+  cbapp install appimage ~/Downloads/MyApp.AppImage MyApp
+  cbapp update turbowarp
+  cbapp list
+  cbapp doctor
+  cbapp remove gimp
+
+No sudo is used. AppPilot writes managed application files under ~/.local,
+uses per-user Flatpak only when Flatpak is already installed, and never calls
+apt, snap install, or system-wide package installation commands.
+HELP
+}
+
+cb_list() {
+    printf '\n%s\n' 'Cloudberry Pi AppPilot — application catalogue'
+    printf '%-19s %s\n' 'APPLICATION' 'SUPPORT / INSTALLATION METHOD'
+    printf '%-19s %s\n' 'gimp' 'ARM64: official AppImage (Debian 13+/glibc 2.41+) or existing Flatpak per-user'
+    printf '%-19s %s\n' 'jetbrains' 'ARM64: JetBrains official Linux ARM64 release'
+    printf '%-19s %s\n' 'turbowarp' 'ARM64: official GitHub Linux ARM64 AppImage'
+    printf '%-19s %s\n' 'appimage' 'Any compatible local Linux AppImage'
+    printf '%-19s %s\n' 'android-studio' 'Not supported on Linux ARM according to official requirements'
+    printf '\nUse: cbapp install <application>\n\n'
+}
+
+cb_doctor() {
+    local errors=0 machine bits
+    printf '\n%s\n' 'AppPilot system diagnostics'
+    if [[ "$(id -u)" -eq 0 ]]; then
+        printf '[FAIL] Running as root. Use your regular account.\n'; errors=$((errors + 1))
+    else
+        printf '[ OK ] Running as an unprivileged user.\n'
+    fi
+    machine="$(uname -m)"
+    bits="$(getconf LONG_BIT 2>/dev/null || printf unknown)"
+    printf '[INFO] Architecture: %s (%s-bit userspace)\n' "$machine" "$bits"
+    if [[ "$machine" == aarch64 && "$bits" == 64 ]]; then
+        printf '[ OK ] 64-bit ARM userspace detected.\n'
+    else
+        printf '[WARN] Some AppPilot catalogue entries require 64-bit ARM.\n'
+    fi
+    for tool in bash curl wget python3 tar sha256sum; do
+        if command -v "$tool" >/dev/null 2>&1; then
+            printf '[ OK ] %s\n' "$tool"
+        elif [[ "$tool" == wget || "$tool" == sha256sum ]]; then
+            # curl and sha256sum each have alternate implementations.
+            if [[ "$tool" == wget && $(command -v curl || true) ]]; then
+                printf '[ OK ] curl (download alternative)\n'
+            elif [[ "$tool" == sha256sum && $(command -v shasum || true) ]]; then
+                printf '[ OK ] shasum (SHA-256 alternative)\n'
+            else
+                printf '[WARN] Optional/alternative command unavailable: %s\n' "$tool"
+            fi
+        else
+            printf '[WARN] Command unavailable: %s\n' "$tool"
+        fi
+    done
+    if [[ ":$PATH:" == *":$CB_BIN:"* ]]; then
+        printf '[ OK ] ~/.local/bin is present in PATH.\n'
+    else
+        printf '[WARN] ~/.local/bin is not in PATH. Add: export PATH="$HOME/.local/bin:$PATH"\n'
+    fi
+    if [[ -w "$CB_HOME" ]]; then
+        printf '[ OK ] Home directory is writable.\n'
+    else
+        printf '[FAIL] Home directory is not writable.\n'; errors=$((errors + 1))
+    fi
+    if [[ -r /etc/os-release ]]; then
+        . /etc/os-release
+        printf '[INFO] Operating system: %s\n' "${PRETTY_NAME:-unknown}"
+    fi
+    if (( errors > 0 )); then
+        printf '\n%d blocking issue(s) found.\n' "$errors"
+        return 1
+    fi
+    printf '\nNo blocking issues found.\n'
+}
+
+cb_status_one() {
+    local id="$1" label="$2" backend version state
+    state="$(cb_state_file "$id")"
+    if [[ ! -r "$state" ]]; then
+        printf '  %-20s %s\n' "$label" 'Not managed by AppPilot'
+        return 0
+    fi
+    backend="$(cb_state_get "$id" Backend)"
+    version="$(cb_state_get "$id" Version)"
+    if [[ -x "$CB_BIN/$id" ]]; then
+        printf '  %-20s Installed (%s; %s)\n' "$label" "$backend" "${version:-version unknown}"
+    else
+        printf '  %-20s Metadata exists, launcher missing (repair with cbapp install %s)\n' "$label" "$id"
+    fi
+}
+
+cb_status() {
+    printf '\n%s\n' 'AppPilot installation status'
+    cb_status_one gimp GIMP
+    cb_status_one jetbrains-toolbox 'JetBrains Toolbox'
+    cb_status_one turbowarp TurboWarp
+    if [[ -d "$CB_STATE/apps" ]]; then
+        local file id
+        shopt -s nullglob
+        for file in "$CB_STATE"/apps/*.conf; do
+            id="$(basename "$file" .conf)"
+            case "$id" in gimp|jetbrains-toolbox|turbowarp) continue ;; esac
+            printf '  %-20s Installed (generic AppImage)\n' "$id"
+        done
+        shopt -u nullglob
+    fi
+    printf '\n'
+}
+
+cb_install() {
+    local app="${1:-}"
+    shift || true
+    case "${app,,}" in
+        gimp|gimp3)
+            cb_install_gimp
+            ;;
+        jetbrains|jetbrains-toolbox|toolbox)
+            cb_install_jetbrains
+            ;;
+        turbowarp|turbowarp-desktop)
+            cb_install_turbowarp
+            ;;
+        appimage)
+            cb_install_generic_appimage "${1:-}" "${2:-}"
+            ;;
+        android-studio|androidstudio)
+            cb_die 'Google currently states that Linux machines with ARM-based CPUs are not supported by Android Studio. See https://developer.android.com/studio/install.html'
+            return 1
+            ;;
+        '')
+            cb_die 'Specify an application. Run: cbapp list'
+            return 1
+            ;;
+        *)
+            cb_die "Unknown application: $app. Run: cbapp list"
+            return 1
+            ;;
+    esac
+}
+
+cb_update() {
+    local app="${1:-}"
+    case "${app,,}" in
+        gimp|gimp3) cb_install_gimp ;;
+        jetbrains|jetbrains-toolbox|toolbox) cb_install_jetbrains ;;
+        turbowarp|turbowarp-desktop) cb_install_turbowarp ;;
+        '') cb_die 'Specify an application to update.'; return 1 ;;
+        *) cb_die "Automatic update is not configured for '$app'. For a generic AppImage, install the new file with: cbapp install appimage FILE NAME"; return 1 ;;
+    esac
+}
+
+cb_remove() {
+    local app="${1:-}" id
+    case "${app,,}" in
+        gimp|gimp3) cb_remove_gimp ;;
+        jetbrains|jetbrains-toolbox|toolbox) cb_remove_jetbrains ;;
+        turbowarp|turbowarp-desktop) cb_remove_turbowarp ;;
+        '') cb_die 'Specify an application to remove.'; return 1 ;;
+        *)
+            id="$(cb_safe_app_id "$app")" || { cb_die 'Invalid application name.'; return 1; }
+            if [[ -r "$(cb_state_file "$id")" ]]; then
+                cb_remove_generic_appimage "$id"
+            else
+                cb_die "AppPilot does not manage an installed application named '$app'."
+                return 1
+            fi
+            ;;
+    esac
+}
+
+cb_self_uninstall() {
+    local install_root="$CB_ROOT"
+    if [[ "$install_root" != "$CB_OPT/cbapp" ]]; then
+        cb_die 'Self-uninstall is available only for the standard user-local installation at ~/.local/opt/cbapp.'
+        return 1
+    fi
+    rm -f -- "$CB_BIN/cbapp" "$CB_BIN/app-install" "$CB_BIN/app-uninstall"
+    rm -rf -- "$CB_OPT/cbapp"
+    cb_remove_desktop cbapp
+    cb_ok 'AppPilot program files and command links removed. Managed applications were left installed.'
+    printf 'Logs and application state remain at: %s\n' "$CB_STATE"
+}
+
+cb_main() {
+    local invocation action
+    invocation="$(basename -- "$0")"
+
+    # Compatibility entry points keep the first user argument intact.
+    case "$invocation" in
+        app-install)
+            action=install
+            ;;
+        app-uninstall)
+            action=remove
+            ;;
+        *)
+            action="${1:-help}"
+        shift || true
+        ;;
+    esac
+
+    case "${action,,}" in
+        help|-h|--help) cb_help ;;
+        version|--version|-v) cb_print_version ;;
+        list|catalogue|catalog) cb_list ;;
+        status) cb_status ;;
+        doctor) cb_doctor ;;
+        install|update|remove|uninstall|self-uninstall)
+            cb_require_user || return 1
+            cb_setup_logging
+            cb_acquire_lock || return 1
+            case "${action,,}" in
+                install) cb_install "$@" ;;
+                update) cb_update "$@" ;;
+                remove|uninstall) cb_remove "$@" ;;
+                self-uninstall) cb_self_uninstall ;;
+            esac
+            ;;
+        *)
+            cb_die "Unknown command: $action"
+            printf 'Run: cbapp help\n' >&2
+            return 2
+            ;;
+    esac
+}
+
+cb_main "$@"
