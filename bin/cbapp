@@ -44,7 +44,7 @@ Commands:
   help                       Show this help.
 
 Catalogue:
-  gimp                       GIMP for 64-bit ARM; official AppImage or user Flatpak.
+  gimp                       GIMP 3.2.8 official ARM64 AppImage; no root or Flatpak.
   jetbrains                  JetBrains Toolbox for Linux ARM64.
   turbowarp                  TurboWarp Desktop for Linux ARM64.
   appimage                   Install a local .AppImage file.
@@ -73,7 +73,7 @@ HELP
 cb_list() {
     printf '\n%s\n' 'Cloudberry Pi AppPilot — application catalogue'
     printf '%-19s %s\n' 'APPLICATION' 'SUPPORT / INSTALLATION METHOD'
-    printf '%-19s %s\n' 'gimp' 'ARM64: official AppImage (Debian 13+/glibc 2.41+) or existing Flatpak per-user'
+    printf '%-19s %s\n' 'gimp' 'ARM64: pinned official GIMP 3.2.8 AppImage (Debian 13+/glibc 2.41+)'
     printf '%-19s %s\n' 'jetbrains' 'ARM64: JetBrains official Linux ARM64 release'
     printf '%-19s %s\n' 'turbowarp' 'ARM64: official GitHub Linux ARM64 AppImage'
     printf '%-19s %s\n' 'appimage' 'Any compatible local Linux AppImage'
@@ -152,7 +152,7 @@ cb_status_one() {
 
 cb_status() {
     printf '\n%s\n' 'AppPilot installation status'
-    cb_status_one gimp GIMP
+    cb_status_one gimp-appimage-pi GIMP
     cb_status_one jetbrains-toolbox 'JetBrains Toolbox'
     cb_status_one turbowarp TurboWarp
     if [[ -d "$CB_STATE/apps" ]]; then
