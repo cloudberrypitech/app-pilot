@@ -75,8 +75,26 @@ cb_gimp_install_desktop() {
 }
 
 cb_install_gimp() {
-    local temp_root download actual magic stage
+    local temp_root download actual magic stage state existing_backend existing_version
     cb_gimp_check_platform || return 1
+
+    state="$(cb_state_file "$CB_GIMP_ID")"
+    if [[ -r "$state" ]]; then
+        existing_backend="$(cb_state_get "$CB_GIMP_ID" Backend)"
+        existing_version="$(cb_state_get "$CB_GIMP_ID" Version)"
+        if [[ "$existing_backend" == appimage && "$existing_version" == "$CB_GIMP_VERSION" \
+            && -x "$CB_GIMP_APP" && -x "$CB_GIMP_LAUNCHER" && -r "$CB_GIMP_DESKTOP" ]]; then
+            actual="$(cb_sha256 "$CB_GIMP_APP")" || return 1
+            [[ "$actual" == "$CB_GIMP_SHA256" ]] || {
+                cb_die "The existing AppPilot GIMP file failed checksum verification. It was left untouched."
+                return 1
+            }
+            cb_ok "GIMP $CB_GIMP_VERSION is already installed and verified; no files were changed."
+            return 0
+        fi
+        cb_die "AppPilot GIMP state exists but does not match this verified installation. Existing files were left untouched."
+        return 1
+    fi
 
     # Use dedicated names so legacy GIMP installs and personal data are untouched.
     if [[ -e "$CB_GIMP_APP_DIR" || -L "$CB_GIMP_APP_DIR" ]]; then
