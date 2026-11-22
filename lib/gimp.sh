@@ -50,12 +50,22 @@ cb_gimp_install_launcher() {
 #!/usr/bin/env sh
 set -eu
 APP="$HOME/.local/opt/gimp-appimage-pi-3.2.8-arm64/GIMP-3.2.8-aarch64.AppImage"
+TMPDIR="$HOME/.cache/cbapp/tmp/gimp"
 if [ ! -x "$APP" ]; then
-    printf '%s\n' 'GIMP AppImage is missing. Run: cbapp install gimp' >&2
+    printf '%s\\n' 'GIMP AppImage is missing. Run: cbapp install gimp' >&2
     exit 127
 fi
+mkdir -p "$TMPDIR"
+FREE_KB="$(df -Pk "$TMPDIR" 2>/dev/null | awk 'NR==2 {print $4}')"
+case "$FREE_KB" in
+    ''|*[!0-9]*) printf '%s\\n' 'Could not determine free space for GIMP extraction.' >&2; exit 1 ;;
+esac
+if [ "$FREE_KB" -lt 1000000 ]; then
+    printf '%s\\n' 'GIMP needs approximately 1 GiB of free space for AppImage extraction.' >&2
+    exit 1
+fi
 cd "$HOME" || exit 1
-export APPIMAGE_EXTRACT_AND_RUN=1
+export TMPDIR APPIMAGE_EXTRACT_AND_RUN=1
 exec "$APP" "$@"
 LAUNCHER
     chmod 755 "$tmp"
