@@ -15,13 +15,13 @@ Cloudberry Pi AppPilot is a user-local Bash application manager for Raspberry Pi
 
 | Application | ARM64 support | Installation method |
 |---|---|---|
-| GIMP | Yes | Official ARM64 AppImage on Debian 13+/glibc 2.41+, or per-user Flatpak when Flatpak is already installed |
+| GIMP | Yes | Pinned official GIMP 3.2.8 ARM64 AppImage on Debian 13+/glibc 2.41+; no Flatpak or root required |
 | JetBrains Toolbox | Yes | JetBrains official Linux ARM64 release API |
 | TurboWarp Desktop | Yes | Official Linux ARM64 AppImage from the latest GitHub release |
 | Generic AppImage | Depends on the AppImage | Copies a local AppImage into the user's `~/.local/opt` directory |
 | Android Studio | Not officially supported on Linux ARM | AppPilot explains the limitation and does not attempt installation |
 
-Application release information is resolved at installation/update time where the vendor provides a stable release API. GIMP's AppImage is checked against the SHA-256 value published on the official GIMP downloads page. TurboWarp's GitHub release digest is checked when GitHub publishes one for the asset.
+JetBrains and TurboWarp release information is resolved at installation/update time where the vendor provides a stable release API. GIMP uses a pinned official ARM64 AppImage release and verifies its SHA-256 before installing. TurboWarp's GitHub release digest is checked when GitHub publishes one for the asset.
 
 ## Requirements
 
@@ -153,7 +153,7 @@ Common issues:
 
 - **`cbapp: command not found`:** check `printf '%s\\n' "$PATH"` and confirm `~/.local/bin` is included.
 - **Not ARM64:** the curated applications are built for 64-bit ARM. Check `uname -m` and `getconf LONG_BIT`.
-- **No GIMP AppImage support:** use Debian 13/Raspberry Pi OS based on Debian 13, or have Flatpak installed by an administrator once; AppPilot will then install GIMP per-user.
+- **GIMP platform requirement:** the pinned GIMP 3.2.8 AppImage requires 64-bit ARM and Debian 13+/glibc 2.41+. AppPilot stops without making system changes when these requirements are not met.
 - **Checksum failure:** the downloaded file is discarded and is not installed. Retry later and inspect the official vendor download page.
 - **AppImage extraction space:** free space in the home filesystem; AppImage extraction uses a user-local cache directory.
 - **Desktop menu not refreshed:** log out and back in, or restart the desktop shell. AppPilot writes a `.desktop` entry under `~/.local/share/applications`.
@@ -173,7 +173,7 @@ Bash syntax checks are included. CI also runs ShellCheck on the shell source fil
 - No root execution; running as root is rejected.
 - No `sudo` calls or system package installation.
 - Downloads use HTTPS.
-- GIMP AppImage downloads are verified against the SHA-256 published on GIMP's official download page.
+- GIMP 3.2.8 AppImage downloads are verified against the pinned official SHA-256 before installation.
 - TurboWarp's asset SHA-256 is verified when the GitHub API provides an asset digest.
 - Release APIs are parsed as data; downloaded executables are not sourced as shell scripts.
 - User-provided AppImages are executable code. Only install files from sources you trust.
