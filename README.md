@@ -128,7 +128,7 @@ GIMP is installed from the official, pinned GIMP 3.2.8 ARM64 AppImage. The insta
 
 `~/.local/opt/gimp-appimage-pi-3.2.8-arm64/`
 
-It creates the command `~/.local/bin/gimp-appimage-pi` and the desktop menu entry `~/.local/share/applications/gimp-appimage-pi.desktop`. The menu entry appears as GIMP. The launcher sets `APPIMAGE_EXTRACT_AND_RUN=1` so a FUSE mount is not required.
+It creates the command `~/.local/bin/gimp-appimage-pi` and the desktop menu entry `~/.local/share/applications/gimp-appimage-pi.desktop`. The menu entry appears as GIMP. The launcher sets `APPIMAGE_EXTRACT_AND_RUN=1` so a FUSE mount is not required, and checks for approximately 1 GiB of free temporary space before starting.
 
 The GIMP path requires 64-bit ARM and Debian 13+/glibc 2.41+. On an unsupported system it stops with an explanation; it does not install Flatpak, system packages, dependencies, or request root access.
 
