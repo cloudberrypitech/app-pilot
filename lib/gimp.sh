@@ -63,7 +63,12 @@ LAUNCHER
         cb_die "Could not create launcher without replacing an existing file: $CB_GIMP_LAUNCHER"
         return 1
     fi
-    [[ -e "$tmp" ]] && rm -f -- "$tmp"
+    if [[ -e "$tmp" ]]; then
+        rm -f -- "$tmp"
+        cb_die "Launcher destination already existed; it was not overwritten: $CB_GIMP_LAUNCHER"
+        return 1
+    fi
+    return 0
 }
 
 cb_gimp_install_desktop() {
