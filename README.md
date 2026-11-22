@@ -124,11 +124,15 @@ Uninstalling an application removes its AppPilot-managed program files, command 
 
 ## GIMP compatibility details
 
-GIMP's official download page currently publishes an ARM64 AppImage and describes Debian 13 or newer as its supported Linux baseline. AppPilot obtains the current version and SHA-256 checksum directly from that official page, then verifies the download before replacing an installed AppImage.
+GIMP is installed from the official, pinned GIMP 3.2.8 ARM64 AppImage. The installer verifies the exact SHA-256 checksum and ELF executable header before placing it in a dedicated directory:
 
-On systems below the vendor's AppImage baseline, AppPilot can use Flatpak **only when the `flatpak` command is already installed**. It installs GIMP using Flatpak's `--user` mode. If Flatpak is not installed, AppPilot stops with an explanation; it will not install Flatpak system-wide or request root access.
+`~/.local/opt/gimp-appimage-pi-3.2.8-arm64/`
 
-The AppImage launcher uses `APPIMAGE_EXTRACT_AND_RUN=1` to avoid a FUSE mount dependency. The first launch can require substantial free temporary space; the launcher checks for approximately 1 GiB of free space before starting.
+It creates the command `~/.local/bin/gimp-appimage-pi` and the desktop menu entry `~/.local/share/applications/gimp-appimage-pi.desktop`. The menu entry appears as GIMP. The launcher sets `APPIMAGE_EXTRACT_AND_RUN=1` so a FUSE mount is not required.
+
+The GIMP path requires 64-bit ARM and Debian 13+/glibc 2.41+. On an unsupported system it stops with an explanation; it does not install Flatpak, system packages, dependencies, or request root access.
+
+**Non-destructive behaviour:** this feature uses dedicated, versioned paths and refuses to overwrite an existing application directory, launcher, desktop entry, or AppPilot state. It does not edit `.bashrc`, remove an older GIMP installation, or modify GIMP preferences, brushes, plug-ins, scripts, palettes, or project files. Re-running `cbapp install gimp` verifies an existing AppPilot-managed installation and leaves it unchanged. `cbapp remove gimp` removes only the exact AppPilot-managed GIMP 3.2.8 application directory, launcher, desktop entry and state file.
 
 ## Android Studio note
 
