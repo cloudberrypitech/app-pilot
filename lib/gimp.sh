@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
+# GIMP: pinned, verified, non-destructive ARM64 AppImage installation.
+# Installs only into AppPilot's dedicated user-local paths. Never uses root.
 
-cb_gimp_appimage_supported() {
-    local os_id="" os_version="" libc_line="" libc_version="" libc_major="" libc_minor=""
-    if [[ -r /etc/os-release ]]; then
-        os_id="$(sed -n 's/^ID=//p' /etc/os-release | head -n1 | tr -d '"')"
-        os_version="$(sed -n 's/^VERSION_ID=//p' /etc/os-release | head -n1 | tr -d '"')"
-    fi
-    if [[ "$os_id" == "debian" && "$os_version" =~ ^([0-9]+) ]]; then
-        (( BASH_REMATCH[1] >= 13 )) && return 0
-    fi
+CB_GIMP_VERSION="3.2.8"
+CB_GIMP_FILE="GIMP-${CB_GIMP_VERSION}-aarch64.AppImage"
+CB_GIMP_SHA256="3fd61dbc40b760f7806ffc04c29dc0d93021b799b9d0e6977571c4425d0323b0"
+CB_GIMP_URL="https://download.gimp.org/gimp/v3.2/linux/${CB_GIMP_FILE}"
+CB_GIMP_ID="gimp-appimage-pi"
+CB_GIMP_APP_DIR="$CB_APPS/${CB_GIMP_ID}-${CB_GIMP_VERSION}-arm64"
+CB_GIMP_APP="$CB_GIMP_APP_DIR/${CB_GIMP_FILE}"
+CB_GIMP_LAUNCHER="$CB_BIN/${CB_GIMP_ID}"
+CB_GIMP_DESKTOP="$CB_DESKTOP/${CB_GIMP_ID}.desktop"
+
+cb_gimp_check_platform() {
+    cb_require_arm64 || return 1
+    local libc_line libc_version libc_major libc_minor os_id os_version
     libc_line="$(getconf GNU_LIBC_VERSION 2>/dev/null || true)"
     libc_version="${libc_line##* }"
     if [[ "$libc_version" =~ ^([0-9]+)\.([0-9]+) ]]; then
@@ -18,199 +24,137 @@ cb_gimp_appimage_supported() {
             return 0
         fi
     fi
+    os_id=""
+    os_version=""
+    if [[ -r /etc/os-release ]]; then
+        # Parse only ID and VERSION_ID as data; do not source the file.
+        os_id="$(sed -n 's/^ID=//p' /etc/os-release | head -n1 | tr -d '"')"
+        os_version="$(sed -n 's/^VERSION_ID=//p' /etc/os-release | head -n1 | tr -d '"')"
+    fi
+    if [[ "$os_id" == debian || "$os_id" == raspbian ]]; then
+        if [[ "$os_version" =~ ^([0-9]+) ]] && (( BASH_REMATCH[1] >= 13 )); then
+            return 0
+        fi
+    fi
+    cb_die "The official GIMP ARM64 AppImage requires Debian 13+/glibc 2.41+. Detected libc: ${libc_version:-unknown}; OS: ${os_id:-unknown} ${os_version:-unknown}. No system changes were made."
     return 1
 }
 
-cb_gimp_fetch_release_metadata() {
-    cb_require_command python3 || return 1
-    local page="$CB_CACHE/gimp-downloads.html"
-    cb_download 'https://www.gimp.org/downloads/' "$page" || return 1
-    python3 - "$page" <<'PY'
-import html
-import re
-import sys
-from html.parser import HTMLParser
-
-class Text(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.parts = []
-    def handle_data(self, data):
-        self.parts.append(data)
-
-raw = open(sys.argv[1], encoding="utf-8", errors="replace").read()
-p = Text()
-p.feed(raw)
-plain = html.unescape(" ".join(p.parts))
-
-# Find the ARM64 AppImage filename and its published SHA-256 on the official page.
-versions = re.findall(r"GIMP-(\d+\.\d+\.\d+)-aarch64\.AppImage", plain)
-if not versions:
-    raise SystemExit("Could not find an ARM64 AppImage version on the official GIMP page.")
-version = versions[0]
-filename = f"GIMP-{version}-aarch64.AppImage"
-match = re.search(
-    r"SHA256\s+hash\s+sum\s+for\s+" + re.escape(filename) + r"\s*[:：]\s*([0-9a-fA-F]{64})",
-    plain,
-    re.IGNORECASE,
-)
-if not match:
-    # Accommodate formatting where the filename and checksum are separated by markup/text.
-    idx = plain.find(filename)
-    nearby = plain[max(0, idx - 500):idx + 1200]
-    hashes = re.findall(r"\b[0-9a-fA-F]{64}\b", nearby)
-    if len(hashes) != 1:
-        raise SystemExit("Could not safely associate a SHA-256 checksum with the GIMP ARM64 AppImage.")
-    checksum = hashes[0].lower()
-else:
-    checksum = match.group(1).lower()
-
-major, minor, _patch = version.split(".")
-url = f"https://download.gimp.org/gimp/v{major}.{minor}/linux/{filename}"
-print(version)
-print(checksum)
-print(url)
-PY
-}
-
-cb_gimp_write_appimage_launcher() {
-    local target="$CB_BIN/.gimp.new.$$"
-    cat > "$target" <<'LAUNCHER'
+cb_gimp_install_launcher() {
+    local tmp="$CB_BIN/.${CB_GIMP_ID}.new.$$"
+    [[ ! -e "$CB_GIMP_LAUNCHER" && ! -L "$CB_GIMP_LAUNCHER" ]] || {
+        cb_die "Refusing to overwrite an existing user file: $CB_GIMP_LAUNCHER"
+        return 1
+    }
+    cat > "$tmp" <<'LAUNCHER'
 #!/usr/bin/env sh
 set -eu
-APP="$HOME/.local/opt/gimp/GIMP.AppImage"
-TMPDIR="$HOME/.cache/cbapp/tmp/gimp"
+APP="$HOME/.local/opt/gimp-appimage-pi-3.2.8-arm64/GIMP-3.2.8-aarch64.AppImage"
 if [ ! -x "$APP" ]; then
     printf '%s\n' 'GIMP AppImage is missing. Run: cbapp install gimp' >&2
     exit 127
 fi
-mkdir -p "$TMPDIR"
-FREE_KB="$(df -Pk "$TMPDIR" 2>/dev/null | awk 'NR==2 {print $4}')"
-case "$FREE_KB" in
-    ''|*[!0-9]*) printf '%s\n' 'Could not determine free space for GIMP extraction.' >&2; exit 1 ;;
-esac
-if [ "$FREE_KB" -lt 1000000 ]; then
-    printf '%s\n' 'GIMP needs approximately 1 GiB of free space for AppImage extraction.' >&2
-    exit 1
-fi
 cd "$HOME" || exit 1
-export TMPDIR APPIMAGE_EXTRACT_AND_RUN=1
+export APPIMAGE_EXTRACT_AND_RUN=1
 exec "$APP" "$@"
 LAUNCHER
-    chmod 755 "$target"
-    mv -f -- "$target" "$CB_BIN/gimp"
+    chmod 755 "$tmp"
+    if ! mv -n -- "$tmp" "$CB_GIMP_LAUNCHER"; then
+        cb_die "Could not create launcher without replacing an existing file: $CB_GIMP_LAUNCHER"
+        return 1
+    fi
+    [[ -e "$tmp" ]] && rm -f -- "$tmp"
 }
 
-cb_gimp_write_flatpak_launcher() {
-    local target="$CB_BIN/.gimp.new.$$"
-    cat > "$target" <<'LAUNCHER'
-#!/usr/bin/env sh
-set -eu
-if ! command -v flatpak >/dev/null 2>&1; then
-    printf '%s\n' 'Flatpak is required for this GIMP installation.' >&2
-    exit 127
-fi
-exec flatpak run --user org.gimp.GIMP "$@"
-LAUNCHER
-    chmod 755 "$target"
-    mv -f -- "$target" "$CB_BIN/gimp"
-}
-
-cb_install_gimp_appimage() {
-    local metadata version checksum url actual temp app_dir new_file
-    metadata="$(cb_gimp_fetch_release_metadata)" || return 1
-    version="$(printf '%s\n' "$metadata" | sed -n '1p')"
-    checksum="$(printf '%s\n' "$metadata" | sed -n '2p')"
-    url="$(printf '%s\n' "$metadata" | sed -n '3p')"
-    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { cb_die 'GIMP release version could not be validated.'; return 1; }
-    [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] || { cb_die 'GIMP SHA-256 from the official page is invalid.'; return 1; }
-    [[ "$url" == https://download.gimp.org/* ]] || { cb_die 'GIMP download URL is not from the official download host.'; return 1; }
-
-    cb_check_free_kb "$CB_HOME" 600000 || return 1
-    temp="$CB_CACHE/GIMP-${version}-aarch64.AppImage.part"
-    cb_info "Downloading official GIMP ${version} ARM64 AppImage..."
-    cb_download "$url" "$temp" || return 1
-    cb_check_min_size "$temp" 100000000 || return 1
-    actual="$(cb_sha256 "$temp")" || return 1
-    [[ "$actual" == "$checksum" ]] || {
-        cb_die "GIMP checksum mismatch. Expected $checksum, got $actual. The download was not installed."
+cb_gimp_install_desktop() {
+    [[ ! -e "$CB_GIMP_DESKTOP" && ! -L "$CB_GIMP_DESKTOP" ]] || {
+        cb_die "Refusing to overwrite an existing desktop entry: $CB_GIMP_DESKTOP"
         return 1
     }
-    cb_ok 'GIMP official SHA-256 checksum verified.'
-
-    app_dir="$CB_APPS/gimp"
-    mkdir -p -- "$app_dir"
-    new_file="$app_dir/.GIMP.AppImage.new.$$"
-    cp -- "$temp" "$new_file"
-    chmod 755 "$new_file"
-    mv -f -- "$new_file" "$app_dir/GIMP.AppImage"
-    cb_gimp_write_appimage_launcher || return 1
-    cb_write_desktop gimp GIMP 'GIMP image editor' "\"$CB_BIN/gimp\" %F" applications-graphics 'Graphics;2DGraphics;RasterGraphics'
-    cb_state_write gimp appimage "$version" "$url"
-    cb_report_installed gimp "GIMP $version"
-}
-
-cb_install_gimp_flatpak() {
-    command -v flatpak >/dev/null 2>&1 || {
-        cb_die 'This OS is below GIMP AppImage vendor support and Flatpak is not installed. AppPilot will not install system packages; ask an administrator to install Flatpak once, or use Debian 13/Raspberry Pi OS based on Debian 13.'
-        return 1
-    }
-    cb_info 'Using Flatpak in per-user mode. No system-wide installation will be performed.'
-    flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-    flatpak install --user --noninteractive --assumeyes flathub org.gimp.GIMP
-    cb_gimp_write_flatpak_launcher || return 1
-    cb_write_desktop gimp GIMP 'GIMP image editor' "\"$CB_BIN/gimp\" %F" org.gimp.GIMP 'Graphics;2DGraphics;RasterGraphics'
-    local version
-    version="$(flatpak info --user org.gimp.GIMP 2>/dev/null | awk -F': ' '/^Version:/ {print $2; exit}')"
-    version="${version:-managed by Flatpak}"
-    cb_state_write gimp flatpak "$version" flathub
-    cb_report_installed gimp "GIMP ($version, user Flatpak)"
+    cb_write_desktop "$CB_GIMP_ID" "GIMP" "GIMP image editor (official ARM64 AppImage)" "\"$CB_GIMP_LAUNCHER\" %F" applications-graphics 'Graphics;2DGraphics;RasterGraphics'
 }
 
 cb_install_gimp() {
-    cb_require_arm64 || return 1
-    local backend
-    backend="$(cb_state_get gimp Backend)"
-    if [[ "$backend" == "flatpak" ]]; then
-        command -v flatpak >/dev/null 2>&1 || { cb_die 'This GIMP installation uses Flatpak, but the flatpak command is unavailable.'; return 1; }
-        cb_info 'Updating GIMP through the existing per-user Flatpak installation...'
-        if flatpak info --user org.gimp.GIMP >/dev/null 2>&1; then
-            flatpak update --user --noninteractive --assumeyes org.gimp.GIMP
-        else
-            flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-            flatpak install --user --noninteractive --assumeyes flathub org.gimp.GIMP
-        fi
-        cb_gimp_write_flatpak_launcher || return 1
-        cb_write_desktop gimp GIMP 'GIMP image editor' "\"$CB_BIN/gimp\" %F" org.gimp.GIMP 'Graphics;2DGraphics;RasterGraphics'
-        local version
-        version="$(flatpak info --user org.gimp.GIMP 2>/dev/null | awk -F': ' '/^Version:/ {print $2; exit}')"
-        cb_state_write gimp flatpak "${version:-managed by Flatpak}" flathub
-        cb_ok 'GIMP Flatpak update completed.'
-        return 0
+    local temp_root download actual magic stage
+    cb_gimp_check_platform || return 1
+
+    # Use dedicated names so legacy GIMP installs and personal data are untouched.
+    if [[ -e "$CB_GIMP_APP_DIR" || -L "$CB_GIMP_APP_DIR" ]]; then
+        cb_die "Refusing to overwrite existing installation data: $CB_GIMP_APP_DIR"
+        return 1
     fi
-    if cb_gimp_appimage_supported; then
-        cb_install_gimp_appimage
-    else
-        cb_warn 'The GIMP AppImage is listed by GIMP for Debian 13 or newer. This system does not meet that baseline.'
-        if [[ -n "$backend" && "$backend" == "appimage" ]]; then
-            cb_die 'The existing AppImage installation cannot be updated safely on this OS. Upgrade the OS or switch installation backend manually.'
-            return 1
-        fi
-        cb_install_gimp_flatpak
+    if [[ -e "$CB_GIMP_LAUNCHER" || -L "$CB_GIMP_LAUNCHER" ]]; then
+        cb_die "Refusing to overwrite existing user launcher: $CB_GIMP_LAUNCHER"
+        return 1
     fi
+    if [[ -e "$CB_GIMP_DESKTOP" || -L "$CB_GIMP_DESKTOP" ]]; then
+        cb_die "Refusing to overwrite existing desktop entry: $CB_GIMP_DESKTOP"
+        return 1
+    fi
+    if [[ -e "$(cb_state_file "$CB_GIMP_ID")" ]]; then
+        cb_die "AppPilot state already exists for $CB_GIMP_ID; leaving it untouched."
+        return 1
+    fi
+
+    cb_require_command od || return 1
+    cb_require_command wc || return 1
+    cb_check_free_kb "$CB_HOME" 650000 || return 1
+    mkdir -p -- "$CB_CACHE" "$CB_APPS"
+    temp_root="$(mktemp -d "$CB_CACHE/gimp-install.XXXXXX")"
+    download="$temp_root/$CB_GIMP_FILE"
+    cb_info "Downloading official GIMP $CB_GIMP_VERSION ARM64 AppImage..."
+    cb_download "$CB_GIMP_URL" "$download" || return 1
+    cb_check_min_size "$download" 100000000 || return 1
+
+    actual="$(cb_sha256 "$download")" || return 1
+    [[ "$actual" == "$CB_GIMP_SHA256" ]] || {
+        cb_die "GIMP SHA-256 mismatch. Expected $CB_GIMP_SHA256; received $actual. Nothing was installed."
+        return 1
+    }
+    magic="$(od -An -tx1 -N4 "$download" | tr -d ' \n')"
+    [[ "$magic" == "7f454c46" ]] || {
+        cb_die "Downloaded GIMP file is not an ELF executable. Nothing was installed."
+        return 1
+    }
+    cb_ok "Official GIMP $CB_GIMP_VERSION checksum and ELF format verified."
+
+    stage="$CB_APPS/.${CB_GIMP_ID}.stage.$$"
+    [[ ! -e "$stage" ]] || {
+        cb_die "Temporary installation path already exists: $stage"
+        return 1
+    }
+    mkdir -- "$stage"
+    cp -- "$download" "$stage/$CB_GIMP_FILE"
+    chmod 755 "$stage/$CB_GIMP_FILE"
+    mv -- "$stage" "$CB_GIMP_APP_DIR"
+
+    if ! cb_gimp_install_launcher; then
+        cb_warn "The verified GIMP application files remain at $CB_GIMP_APP_DIR; no existing user file was changed."
+        return 1
+    fi
+    if ! cb_gimp_install_desktop; then
+        cb_warn "The GIMP launcher and application files remain installed; no existing desktop entry was changed."
+        return 1
+    fi
+    cb_state_write "$CB_GIMP_ID" appimage "$CB_GIMP_VERSION" "$CB_GIMP_URL"
+    cb_report_installed "$CB_GIMP_ID" "GIMP $CB_GIMP_VERSION (ARM64 AppImage)"
+    printf '  AppImage: %s\n' "$CB_GIMP_APP"
+    printf '  SHA-256:  %s\n' "$CB_GIMP_SHA256"
+    printf '  Profile:  existing GIMP settings, brushes, plug-ins and projects were not changed.\n'
 }
 
 cb_remove_gimp() {
-    local backend
-    backend="$(cb_state_get gimp Backend)"
-    if [[ "$backend" == "flatpak" ]]; then
-        command -v flatpak >/dev/null 2>&1 || { cb_die 'Flatpak is required to remove the installed GIMP application.'; return 1; }
-        flatpak uninstall --user --noninteractive --assumeyes org.gimp.GIMP
-        cb_info 'Shared Flatpak runtimes and the Flathub remote were left untouched.'
+    local state
+    state="$(cb_state_file "$CB_GIMP_ID")"
+    if [[ ! -r "$state" ]]; then
+        cb_die 'AppPilot does not have a managed GIMP AppImage installation to remove.'
+        return 1
     fi
-    rm -f -- "$CB_BIN/gimp"
-    rm -rf -- "$CB_APPS/gimp"
-    rm -f -- "$(cb_state_file gimp)"
-    cb_remove_desktop gimp
-    cb_ok 'GIMP application files removed. User preferences, brushes, plug-ins and projects were kept.'
+    # Remove only exact paths created by this AppPilot feature.
+    rm -f -- "$CB_GIMP_LAUNCHER" "$CB_GIMP_DESKTOP" "$state"
+    rm -rf -- "$CB_GIMP_APP_DIR"
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database "$CB_DESKTOP" >/dev/null 2>&1 || true
+    fi
+    cb_ok 'AppPilot GIMP application files removed. GIMP profiles, brushes, plug-ins and projects were left untouched.'
 }
