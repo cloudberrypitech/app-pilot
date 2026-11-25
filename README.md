@@ -5,7 +5,8 @@
 Cloudberry Pi AppPilot is a user-local Bash application manager for Raspberry Pi OS and other Linux systems. It installs, updates, checks and removes supported desktop applications without `sudo`, root access, or system-wide package changes.
 
 - **Product:** Cloudberry Pi AppPilot
-- **Command:** `cbapp`
+- **Commands:** `alp` (short command), `cbapp` (compatibility alias)
+- **Graphical interface:** `alp --gui` (Zenity)
 - **Compatibility commands:** `app-install`, `app-uninstall`
 - **Version:** 1.1.0
 - **Primary target:** Raspberry Pi 5 / 64-bit ARM Linux
@@ -32,6 +33,7 @@ JetBrains and TurboWarp release information is resolved at installation/update t
 - `tar` for JetBrains Toolbox archives
 - `sha256sum` or `shasum` for checksum verification
 - A writable home directory
+- Optional: Zenity for the graphical interface (`alp --gui`)
 
 AppPilot does not install these requirements. It never calls `sudo`, `apt`, `apt-get`, `dpkg`, `snap install`, or a system-wide Flatpak installation command.
 
@@ -51,11 +53,16 @@ The installer copies the runtime to `~/.local/opt/cbapp` and creates these user 
 
 ```text
 ~/.local/bin/cbapp
+~/.local/bin/alp
 ~/.local/bin/app-install
 ~/.local/bin/app-uninstall
 ```
 
 It refuses to overwrite unrelated files with those names. It does not edit `.bashrc`; add `~/.local/bin` to `PATH` only if your shell does not already include it.
+
+## Graphical interface
+
+Run `alp --gui` from your desktop session to open the optional Zenity interface. It provides graphical actions to install and remove applications, add local AppImages, register HTTPS download URLs, view the catalogue, inspect installation status, and run diagnostics. `cbapp --gui` opens the same interface. Zenity is an optional dependency and is not installed automatically; install it using your Linux distribution package manager. The GUI requires an active X11 or Wayland desktop session.
 
 ## Dynamic application catalogue
 
@@ -97,6 +104,10 @@ brew install --formula https://raw.githubusercontent.com/cloudberrypitech/app-pi
 ## Commands
 
 ```bash
+alp --gui
+alp help
+alp version
+cbapp --gui  # compatibility alias
 cbapp help
 cbapp version
 cbapp list
