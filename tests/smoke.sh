@@ -7,7 +7,7 @@ for file in "$ROOT"/lib/*.sh; do bash -n "$file"; done
 bash -n "$ROOT/install.sh"
 
 version="$(bash "$ROOT/bin/cbapp" version)"
-[[ "$version" == *"1.1.0"* ]]
+[[ "$version" == *"1.2.0"* ]]
 
 catalogue="$(bash "$ROOT/bin/cbapp" list)"
 [[ "$catalogue" == *"gimp"* ]]
