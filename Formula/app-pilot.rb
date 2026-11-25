@@ -15,6 +15,7 @@ class AppPilot < Formula
       exec "#{Formula["bash"].opt_bin}/bash" "#{libexec}/bin/cbapp" "$@"
     SH
     chmod 0755, bin/"cbapp"
+    bin.install_symlink "cbapp" => "alp"
   end
 
   test do
