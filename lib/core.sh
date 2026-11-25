@@ -2,7 +2,7 @@
 # Shared runtime functions for Cloudberry Pi AppPilot.
 
 CB_NAME="Cloudberry Pi AppPilot"
-CB_VERSION="1.1.0"
+CB_VERSION="1.2.0"
 CB_HOME="${HOME:?HOME must be set}"
 CB_LOCAL="${CB_HOME}/.local"
 CB_BIN="${CB_LOCAL}/bin"
