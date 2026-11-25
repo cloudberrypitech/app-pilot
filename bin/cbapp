@@ -36,7 +36,7 @@ Commands:
   install appimage FILE NAME Install a local AppImage as an application.
   add-file FILE [NAME]        Add a local AppImage to the catalogue.
   add-url NAME URL [SHA256]   Add an HTTPS AppImage download URL.
-  add-brew NAME FORMULA      Add a Homebrew cask/formula (macOS).
+  add-brew NAME CASK         Add a Homebrew cask (macOS).
   update <app>               Update an application using its official source.
   remove <app>               Remove AppPilot-managed application files.
   list                       List supported catalogue entries.
