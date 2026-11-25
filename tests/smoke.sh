@@ -13,7 +13,16 @@ catalogue="$(bash "$ROOT/bin/cbapp" list)"
 [[ "$catalogue" == *"gimp"* ]]
 [[ "$catalogue" == *"jetbrains"* ]]
 [[ "$catalogue" == *"turbowarp"* ]]
-[[ "$catalogue" == *"appimage"* ]]\n[[ "$catalogue" == *"APPLICATION"* ]]\nhelp_text="$(bash "$ROOT/bin/cbapp" help)"\n[[ "$help_text" == *"add-file"* ]]\n[[ "$help_text" == *"add-url"* ]]\n[[ "$help_text" == *"add-brew"* ]]\ngrep -Fq "cb_catalogue_add_file" "$ROOT/lib/catalogue.sh"\ngrep -Fq "cb_catalogue_add_url" "$ROOT/lib/catalogue.sh"\ngrep -Fq "brew install --cask" "$ROOT/lib/catalogue.sh"
+[[ "$catalogue" == *"appimage"* ]]
+[[ "$catalogue" == *"APPLICATION"* ]]
+
+help_text="$(bash "$ROOT/bin/cbapp" help)"
+[[ "$help_text" == *"add-file"* ]]
+[[ "$help_text" == *"add-url"* ]]
+[[ "$help_text" == *"add-brew"* ]]
+grep -Fq "cb_catalogue_add_file" "$ROOT/lib/catalogue.sh"
+grep -Fq "cb_catalogue_add_url" "$ROOT/lib/catalogue.sh"
+grep -Fq "brew install --cask" "$ROOT/lib/catalogue.sh"
 
 # GIMP installer contract: pinned official ARM64 AppImage, checksum, and
 # dedicated non-overwriting user paths. These checks do not execute downloads.
