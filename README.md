@@ -7,7 +7,7 @@ Cloudberry Pi AppPilot is a user-local Bash application manager for Raspberry Pi
 - **Product:** Cloudberry Pi AppPilot
 - **Command:** `cbapp`
 - **Compatibility commands:** `app-install`, `app-uninstall`
-- **Version:** 1.0.0
+- **Version:** 1.1.0
 - **Primary target:** Raspberry Pi 5 / 64-bit ARM Linux
 - **Repository:** `https://github.com/cloudberrypitech/app-pilot`
 
