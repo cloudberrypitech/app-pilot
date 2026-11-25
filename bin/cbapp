@@ -150,7 +150,9 @@ cb_status_one() {
     fi
     backend="$(cb_state_get "$id" Backend)"
     version="$(cb_state_get "$id" Version)"
-    if [[ -x "$CB_BIN/$id" ]]; then
+    if [[ "$backend" == homebrew ]]; then
+        printf '  %-20s Installed (Homebrew cask; %s)\n' "$label" "$(cb_state_get "$id" Source)"
+    elif [[ -x "$CB_BIN/$id" ]]; then
         printf '  %-20s Installed (%s; %s)\n' "$label" "$backend" "${version:-version unknown}"
     else
         printf '  %-20s Metadata exists, launcher missing (repair with cbapp install %s)\n' "$label" "$id"
