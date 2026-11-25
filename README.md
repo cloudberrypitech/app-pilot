@@ -57,6 +57,43 @@ The installer copies the runtime to `~/.local/opt/cbapp` and creates these user 
 
 It refuses to overwrite unrelated files with those names. It does not edit `.bashrc`; add `~/.local/bin` to `PATH` only if your shell does not already include it.
 
+## Dynamic application catalogue
+
+AppPilot can register new AppImages without editing its Bash source.
+
+### Add a local download file
+
+```bash
+cbapp add-file ~/Downloads/MyApp.AppImage MyApp
+cbapp list
+cbapp install myapp
+```
+
+You can also place an `.AppImage` file in the repository's `downloads/` directory. The CLI discovers those files automatically; use the filename without its extension as the application ID. Files added with `add-file` are copied into `~/.local/state/cbapp/downloads/` and registered in the persistent user catalogue.
+
+### Add a direct download URL
+
+```bash
+cbapp add-url MyApp https://downloads.example.org/MyApp.AppImage SHA256
+cbapp install myapp
+```
+
+Only HTTPS direct links ending in `.AppImage` are accepted. SHA-256 is optional but recommended. If omitted, AppPilot warns that it cannot verify the downloaded file against a publisher checksum. The user catalogue is stored at `~/.local/state/cbapp/catalogue.tsv`.
+
+### Add a Homebrew cask (macOS)
+
+```bash
+cbapp add-brew Firefox firefox
+cbapp install firefox
+cbapp remove firefox
+```
+
+Homebrew catalogue entries use `brew install --cask` and require macOS plus an existing Homebrew installation. The AppPilot CLI itself can be installed using the formula in `Formula/app-pilot.rb`:
+
+```bash
+brew install --formula https://raw.githubusercontent.com/cloudberrypitech/app-pilot/main/Formula/app-pilot.rb
+```
+
 ## Commands
 
 ```bash
