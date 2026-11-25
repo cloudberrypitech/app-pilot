@@ -95,6 +95,7 @@ cb_catalogue_list() {
         for file in "$scan_dir"/*.AppImage "$scan_dir"/*.appimage; do
             id="$(basename "$file")"
             id="${id%.*}"
+            id="$(cb_safe_app_id "$id")" || continue
             if [[ -r "$db" ]] && awk -F '\t' -v id="$id" '$1 == id {found=1} END {exit !found}' "$db"; then
                 continue
             fi
@@ -111,12 +112,19 @@ cb_catalogue_install() {
     row=""
     [[ ! -r "$db" ]] || row="$(awk -F '\t' -v id="$id" '$1 == id {print; exit}' "$db")"
     if [[ -z "$row" ]]; then
-        for candidate in "$CB_ROOT/downloads/$id.AppImage" "$CB_ROOT/downloads/$id.appimage"; do
-            if [[ -f "$candidate" ]]; then
-                cb_install_generic_appimage "$candidate" "$id"
-                return
-            fi
-        done
+        if [[ -d "$CB_ROOT/downloads" ]]; then
+            shopt -s nullglob
+            for candidate in "$CB_ROOT/downloads"/*.AppImage "$CB_ROOT/downloads"/*.appimage; do
+                local candidate_id
+                candidate_id="$(cb_safe_app_id "$(basename "${candidate%.*}")")" || continue
+                if [[ "$candidate_id" == "$id" ]]; then
+                    cb_install_generic_appimage "$candidate" "$id"
+                    shopt -u nullglob
+                    return
+                fi
+            done
+            shopt -u nullglob
+        fi
         cb_die "No catalogue entry for '$id'. Add one with cbapp add-file, add-url, or add-brew."
         return 1
     fi
