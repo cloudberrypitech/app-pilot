@@ -11,7 +11,7 @@ else
 fi
 CB_ROOT="${CBAPP_ROOT:-$(cd -- "$(dirname -- "$RESOLVED_PATH")/.." && pwd -P)}"
 
-for library in core.sh gimp.sh jetbrains.sh turbowarp.sh appimage.sh catalogue.sh; do
+for library in core.sh gimp.sh jetbrains.sh turbowarp.sh appimage.sh catalogue.sh gui.sh; do
     [[ -r "$CB_ROOT/lib/$library" ]] || {
         printf '[FAIL] AppPilot library is missing: %s/lib/%s\n' "$CB_ROOT" "$library" >&2
         exit 1
@@ -32,6 +32,7 @@ Usage:
   cbapp <command> [application] [options]
 
 Commands:
+  --gui                      Open the Zenity graphical interface.
   install <app>              Install an application for the current user.
   install appimage FILE NAME Install a local AppImage as an application.
   add-file FILE [NAME]        Add a local AppImage to the catalogue.
@@ -58,6 +59,9 @@ Compatibility aliases (installed by install.sh):
   app-uninstall gimp         Equivalent to: cbapp remove gimp
 
 Examples:
+  alp --gui
+  alp install gimp
+  cbapp --gui
   cbapp install gimp
   cbapp install jetbrains
   cbapp install turbowarp
@@ -248,7 +252,7 @@ cb_self_uninstall() {
         cb_die 'Self-uninstall is available only for the standard user-local installation at ~/.local/opt/cbapp.'
         return 1
     fi
-    rm -f -- "$CB_BIN/cbapp" "$CB_BIN/app-install" "$CB_BIN/app-uninstall"
+    rm -f -- "$CB_BIN/cbapp" "$CB_BIN/alp" "$CB_BIN/app-install" "$CB_BIN/app-uninstall"
     rm -rf -- "$CB_OPT/cbapp"
     cb_remove_desktop cbapp
     cb_ok 'AppPilot program files and command links removed. Managed applications were left installed.'
@@ -267,6 +271,9 @@ cb_main() {
         app-uninstall)
             action=remove
             ;;
+        alp)
+            if [[ "${1:-}" == "--gui" ]]; then action=--gui; shift; else action="${1:-help}"; shift || true; fi
+            ;;
         *)
             action="${1:-help}"
             shift || true
@@ -275,6 +282,7 @@ cb_main() {
 
     case "${action,,}" in
         help|-h|--help) cb_help ;;
+        --gui) cb_gui_main ;;
         version|--version|-v) cb_print_version ;;
         list|catalogue|catalog) cb_list ;;
         status) cb_status ;;
