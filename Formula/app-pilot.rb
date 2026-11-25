@@ -9,6 +9,7 @@ class AppPilot < Formula
 
   def install
     libexec.install "bin", "lib", "VERSION", "LICENSE"
+    libexec.install "downloads" if File.directory?("downloads")
     (bin/"cbapp").write <<~SH
       #!/bin/sh
       exec "#{Formula["bash"].opt_bin}/bash" "#{libexec}/bin/cbapp" "$@"
