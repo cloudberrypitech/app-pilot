@@ -9,7 +9,7 @@ Cloudberry Pi AppPilot is a user-local Bash application manager for Raspberry Pi
 - **Compatibility commands:** `app-install`, `app-uninstall`
 - **Version:** 1.0.0
 - **Primary target:** Raspberry Pi 5 / 64-bit ARM Linux
-- **Repository:** `https://github.com/cloudberrypitech/cloudberry-app-pilot`
+- **Repository:** `https://github.com/cloudberrypitech/app-pilot`
 
 ## What it manages
 
@@ -40,8 +40,8 @@ AppPilot does not install these requirements. It never calls `sudo`, `apt`, `apt
 ### From the GitHub repository
 
 ```bash
-git clone https://github.com/cloudberrypitech/cloudberry-app-pilot.git
-cd cloudberry-app-pilot
+git clone https://github.com/cloudberrypitech/app-pilot.git
+cd app-pilot
 bash install.sh
 ```
 
@@ -202,8 +202,8 @@ Common issues:
 ## Development
 
 ```bash
-git clone https://github.com/cloudberrypitech/cloudberry-app-pilot.git
-cd cloudberry-app-pilot
+git clone https://github.com/cloudberrypitech/app-pilot.git
+cd app-pilot
 make check
 ```
 
