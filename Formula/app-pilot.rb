@@ -2,7 +2,7 @@ class AppPilot < Formula
   desc "User-friendly application installer with a dynamic catalogue"
   homepage "https://github.com/cloudberrypitech/app-pilot"
   url "https://github.com/cloudberrypitech/app-pilot.git", branch: "main"
-  version "1.1.0"
+  version "1.2.0"
   license "MIT"
 
   depends_on "bash"
