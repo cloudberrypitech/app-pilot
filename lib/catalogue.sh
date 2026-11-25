@@ -107,7 +107,11 @@ cb_catalogue_install() {
         cb_die "No catalogue entry for '$id'. Add one with cbapp add-file, add-url, or add-brew."
         return 1
     fi
-    IFS=$'\t' read -r id name kind source checksum description <<< "$row"
+    name="$(printf '%s\n' "$row" | awk -F '\t' '{print $2}')"
+    kind="$(printf '%s\n' "$row" | awk -F '\t' '{print $3}')"
+    source="$(printf '%s\n' "$row" | awk -F '\t' '{print $4}')"
+    checksum="$(printf '%s\n' "$row" | awk -F '\t' '{print $5}')"
+    description="$(printf '%s\n' "$row" | awk -F '\t' '{print $6}')"
     case "$kind" in
         appimage)
             [[ -f "$source" ]] || { cb_die "Catalogue package is missing: $source"; return 1; }
