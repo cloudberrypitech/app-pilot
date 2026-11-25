@@ -62,6 +62,7 @@ done
 rm -rf -- "$STAGE"
 mkdir -p -- "$STAGE"
 cp -a -- "$SOURCE_ROOT/bin" "$SOURCE_ROOT/lib" "$STAGE/"
+[[ ! -d "$SOURCE_ROOT/downloads" ]] || cp -a -- "$SOURCE_ROOT/downloads" "$STAGE/downloads"
 [[ ! -f "$SOURCE_ROOT/VERSION" ]] || cp -- "$SOURCE_ROOT/VERSION" "$STAGE/VERSION"
 [[ ! -f "$SOURCE_ROOT/LICENSE" ]] || cp -- "$SOURCE_ROOT/LICENSE" "$STAGE/LICENSE"
 chmod 755 "$STAGE/bin/cbapp"
