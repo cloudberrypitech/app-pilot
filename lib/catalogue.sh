@@ -73,23 +73,35 @@ cb_catalogue_list() {
             printf '%-20s %-22s %s\n' "$id" "$kind" "$description"
         done < "$db"
     fi
-    if [[ -d "$(cb_catalogue_downloads)" ]]; then
+    local scan_dir
+    for scan_dir in "$CB_ROOT/downloads" "$(cb_catalogue_downloads)"; do
+        [[ -d "$scan_dir" ]] || continue
         shopt -s nullglob
-        for file in "$(cb_catalogue_downloads)"/*.AppImage "$(cb_catalogue_downloads)"/*.appimage; do
+        for file in "$scan_dir"/*.AppImage "$scan_dir"/*.appimage; do
             id="$(basename "$file")"
             printf '%-20s %-22s %s\n' "${id%.*}" 'local AppImage' 'Discovered local package'
         done
         shopt -u nullglob
-    fi
+    done
     printf '\nAdd packages with: cbapp add-file FILE [NAME], cbapp add-url NAME HTTPS_URL [SHA256], or cbapp add-brew NAME FORMULA\n\n'
 }
 
 cb_catalogue_install() {
     local id="$1" db row name kind source checksum description downloaded
     db="$(cb_catalogue_db)"
-    [[ -r "$db" ]] || { cb_die "No catalogue entry for '$id'. Add one with cbapp add-file, add-url, or add-brew."; return 1; }
-    row="$(awk -F '\t' -v id="$id" '$1 == id {print; exit}' "$db")"
-    [[ -n "$row" ]] || { cb_die "No catalogue entry for '$id'. Run cbapp list."; return 1; }
+    row=""
+    [[ ! -r "$db" ]] || row="$(awk -F '\t' -v id="$id" '$1 == id {print; exit}' "$db")"
+    if [[ -z "$row" ]]; then
+        local candidate
+        for candidate in "$CB_ROOT/downloads/$id.AppImage" "$CB_ROOT/downloads/$id.appimage"; do
+            if [[ -f "$candidate" ]]; then
+                cb_install_generic_appimage "$candidate" "$id"
+                return
+            fi
+        done
+        cb_die "No catalogue entry for '$id'. Add one with cbapp add-file, add-url, or add-brew."
+        return 1
+    fi
     IFS=$'\t' read -r id name kind source checksum description <<< "$row"
     case "$kind" in
         appimage)
