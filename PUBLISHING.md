@@ -31,7 +31,7 @@ git commit -m "Describe the change"
 git push
 ```
 
-## Tag a release
+## Install with Homebrew (macOS)\n\nAfter the formula is merged to main:\n\n```bash\nbrew install --formula https://raw.githubusercontent.com/cloudberrypitech/app-pilot/main/Formula/app-pilot.rb\n```\n\n## Tag a release
 
 ```bash
 git tag -a v1.0.0 -m "AppPilot 1.0.0"
