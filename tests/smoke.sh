@@ -20,6 +20,9 @@ help_text="$(bash "$ROOT/bin/cbapp" help)"
 [[ "$help_text" == *"add-file"* ]]
 [[ "$help_text" == *"add-url"* ]]
 [[ "$help_text" == *"add-brew"* ]]
+[[ "$help_text" == *"--gui"* ]]
+[[ -r "$ROOT/lib/gui.sh" ]]
+grep -Fq "cb_gui_main" "$ROOT/lib/gui.sh"
 grep -Fq "cb_catalogue_add_file" "$ROOT/lib/catalogue.sh"
 grep -Fq "cb_catalogue_add_url" "$ROOT/lib/catalogue.sh"
 grep -Fq "brew install --cask" "$ROOT/lib/catalogue.sh"
