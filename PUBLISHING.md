@@ -1,12 +1,12 @@
 # Publishing and maintaining AppPilot
 
-The repository is https://github.com/cloudberrypitech/cloudberry-app-pilot.
+The repository is https://github.com/cloudberrypitech/app-pilot.
 
 ## Clone
 
 ```bash
-git clone https://github.com/cloudberrypitech/cloudberry-app-pilot.git
-cd cloudberry-app-pilot
+git clone https://github.com/cloudberrypitech/app-pilot.git
+cd app-pilot
 ```
 
 ## Install for the current user
@@ -31,9 +31,17 @@ git commit -m "Describe the change"
 git push
 ```
 
+## Install with Homebrew (macOS)
+
+After the formula is merged to main:
+
+```bash
+brew install --formula https://raw.githubusercontent.com/cloudberrypitech/app-pilot/main/Formula/app-pilot.rb
+```
+
 ## Tag a release
 
 ```bash
-git tag -a v1.0.0 -m "AppPilot 1.0.0"
-git push origin v1.0.0
+git tag -a v1.1.0 -m "AppPilot 1.1.0"
+git push origin v1.1.0
 ```

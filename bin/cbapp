@@ -11,7 +11,7 @@ else
 fi
 CB_ROOT="${CBAPP_ROOT:-$(cd -- "$(dirname -- "$RESOLVED_PATH")/.." && pwd -P)}"
 
-for library in core.sh gimp.sh jetbrains.sh turbowarp.sh appimage.sh; do
+for library in core.sh gimp.sh jetbrains.sh turbowarp.sh appimage.sh catalogue.sh; do
     [[ -r "$CB_ROOT/lib/$library" ]] || {
         printf '[FAIL] AppPilot library is missing: %s/lib/%s\n' "$CB_ROOT" "$library" >&2
         exit 1
@@ -34,6 +34,9 @@ Usage:
 Commands:
   install <app>              Install an application for the current user.
   install appimage FILE NAME Install a local AppImage as an application.
+  add-file FILE [NAME]        Add a local AppImage to the catalogue.
+  add-url NAME URL [SHA256]   Add an HTTPS AppImage download URL.
+  add-brew NAME FORMULA      Add a Homebrew cask/formula (macOS).
   update <app>               Update an application using its official source.
   remove <app>               Remove AppPilot-managed application files.
   list                       List supported catalogue entries.
@@ -58,7 +61,10 @@ Examples:
   cbapp install gimp
   cbapp install jetbrains
   cbapp install turbowarp
-  cbapp install appimage ~/Downloads/MyApp.AppImage MyApp
+  cbapp add-file ~/Downloads/MyApp.AppImage MyApp
+  cbapp add-url MyApp https://example.com/MyApp.AppImage [SHA256]
+  cbapp add-brew Firefox firefox
+  cbapp install myapp
   cbapp update turbowarp
   cbapp list
   cbapp doctor
@@ -79,6 +85,7 @@ cb_list() {
     printf '%-19s %s\n' 'appimage' 'Any compatible local Linux AppImage'
     printf '%-19s %s\n' 'android-studio' 'Not supported on Linux ARM according to official requirements'
     printf '\nUse: cbapp install <application>\n\n'
+    cb_catalogue_list
 }
 
 cb_doctor() {
@@ -143,7 +150,9 @@ cb_status_one() {
     fi
     backend="$(cb_state_get "$id" Backend)"
     version="$(cb_state_get "$id" Version)"
-    if [[ -x "$CB_BIN/$id" ]]; then
+    if [[ "$backend" == homebrew ]]; then
+        printf '  %-20s Installed (Homebrew cask; %s)\n' "$label" "$(cb_state_get "$id" Source)"
+    elif [[ -x "$CB_BIN/$id" ]]; then
         printf '  %-20s Installed (%s; %s)\n' "$label" "$backend" "${version:-version unknown}"
     else
         printf '  %-20s Metadata exists, launcher missing (repair with cbapp install %s)\n' "$label" "$id"
@@ -193,8 +202,7 @@ cb_install() {
             return 1
             ;;
         *)
-            cb_die "Unknown application: $app. Run: cbapp list"
-            return 1
+            cb_catalogue_install "$(cb_safe_app_id "$app")"
             ;;
     esac
 }
@@ -206,7 +214,7 @@ cb_update() {
         jetbrains|jetbrains-toolbox|toolbox) cb_install_jetbrains ;;
         turbowarp|turbowarp-desktop) cb_install_turbowarp ;;
         '') cb_die 'Specify an application to update.'; return 1 ;;
-        *) cb_die "Automatic update is not configured for '$app'. For a generic AppImage, install the new file with: cbapp install appimage FILE NAME"; return 1 ;;
+        *) cb_catalogue_install "$(cb_safe_app_id "$app")" ;;
     esac
 }
 
@@ -220,7 +228,12 @@ cb_remove() {
         *)
             id="$(cb_safe_app_id "$app")" || { cb_die 'Invalid application name.'; return 1; }
             if [[ -r "$(cb_state_file "$id")" ]]; then
-                cb_remove_generic_appimage "$id"
+                if [[ "$(cb_state_get "$id" Backend)" == homebrew ]]; then
+                    brew uninstall --cask "$(cb_state_get "$id" Source)"
+                    rm -f -- "$(cb_state_file "$id")"
+                else
+                    cb_remove_generic_appimage "$id"
+                fi
             else
                 cb_die "AppPilot does not manage an installed application named '$app'."
                 return 1
@@ -266,7 +279,7 @@ cb_main() {
         list|catalogue|catalog) cb_list ;;
         status) cb_status ;;
         doctor) cb_doctor ;;
-        install|update|remove|uninstall|self-uninstall)
+        install|update|remove|uninstall|self-uninstall|add-file|add-url|add-brew)
             cb_require_user || return 1
             cb_setup_logging
             cb_acquire_lock || return 1
@@ -275,6 +288,9 @@ cb_main() {
                 update) cb_update "$@" ;;
                 remove|uninstall) cb_remove "$@" ;;
                 self-uninstall) cb_self_uninstall ;;
+                add-file) cb_catalogue_add_file "$@" ;;
+                add-url) cb_catalogue_add_url "$@" ;;
+                add-brew) cb_catalogue_add_brew "$@" ;;
             esac
             ;;
         *)

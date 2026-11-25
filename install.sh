@@ -37,7 +37,7 @@ for required in bash cp mv mkdir chmod ln readlink; do
     }
 done
 
-for item in bin/cbapp lib/core.sh lib/gimp.sh lib/jetbrains.sh lib/turbowarp.sh lib/appimage.sh; do
+for item in bin/cbapp lib/core.sh lib/gimp.sh lib/jetbrains.sh lib/turbowarp.sh lib/appimage.sh lib/catalogue.sh; do
     [[ -r "$SOURCE_ROOT/$item" ]] || {
         printf '[FAIL] Project file is missing: %s\n' "$item" >&2
         exit 1
