@@ -1,8 +1,8 @@
 class AppPilot < Formula
   desc "User-friendly application installer with a dynamic catalogue"
   homepage "https://github.com/cloudberrypitech/app-pilot"
-  url "https://github.com/cloudberrypitech/app-pilot/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "REPLACE_WITH_RELEASE_ARCHIVE_SHA256"
+  url "https://github.com/cloudberrypitech/app-pilot.git", branch: "main"
+  version "1.1.0"
   license "MIT"
 
   depends_on "bash"
