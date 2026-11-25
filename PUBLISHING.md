@@ -1,12 +1,12 @@
 # Publishing and maintaining AppPilot
 
-The repository is https://github.com/cloudberrypitech/cloudberry-app-pilot.
+The repository is https://github.com/cloudberrypitech/app-pilot.
 
 ## Clone
 
 ```bash
-git clone https://github.com/cloudberrypitech/cloudberry-app-pilot.git
-cd cloudberry-app-pilot
+git clone https://github.com/cloudberrypitech/app-pilot.git
+cd app-pilot
 ```
 
 ## Install for the current user
