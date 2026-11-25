@@ -37,7 +37,7 @@ for required in bash cp mv mkdir chmod ln readlink; do
     }
 done
 
-for item in bin/cbapp lib/core.sh lib/gimp.sh lib/jetbrains.sh lib/turbowarp.sh lib/appimage.sh lib/catalogue.sh; do
+for item in bin/cbapp lib/core.sh lib/gimp.sh lib/jetbrains.sh lib/turbowarp.sh lib/appimage.sh lib/catalogue.sh lib/gui.sh; do
     [[ -r "$SOURCE_ROOT/$item" ]] || {
         printf '[FAIL] Project file is missing: %s\n' "$item" >&2
         exit 1
@@ -47,7 +47,7 @@ done
 mkdir -p -- "$BIN_DIR" "$OPT_DIR"
 
 # Refuse to overwrite unrelated user commands.
-for command_name in cbapp app-install app-uninstall; do
+for command_name in cbapp alp app-install app-uninstall; do
     destination="$BIN_DIR/$command_name"
     expected="$TARGET/bin/cbapp"
     if [[ -e "$destination" || -L "$destination" ]]; then
@@ -80,6 +80,7 @@ if ! mv -- "$STAGE" "$TARGET"; then
 fi
 
 ln -sfn -- "$TARGET/bin/cbapp" "$BIN_DIR/cbapp"
+ln -sfn -- "$TARGET/bin/cbapp" "$BIN_DIR/alp"
 ln -sfn -- "$TARGET/bin/cbapp" "$BIN_DIR/app-install"
 ln -sfn -- "$TARGET/bin/cbapp" "$BIN_DIR/app-uninstall"
 
@@ -89,6 +90,8 @@ printf '\n==============================================\n'
 printf ' Cloudberry Pi AppPilot installed successfully\n'
 printf '==============================================\n\n'
 printf 'Commands:\n'
+printf '  alp --gui             (Zenity graphical interface)\n'
+printf '  alp help\n'
 printf '  cbapp help\n'
 printf '  cbapp list\n'
 printf '  cbapp doctor\n'
