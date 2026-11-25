@@ -7,13 +7,13 @@ for file in "$ROOT"/lib/*.sh; do bash -n "$file"; done
 bash -n "$ROOT/install.sh"
 
 version="$(bash "$ROOT/bin/cbapp" version)"
-[[ "$version" == *"1.0.0"* ]]
+[[ "$version" == *"1.1.0"* ]]
 
 catalogue="$(bash "$ROOT/bin/cbapp" list)"
 [[ "$catalogue" == *"gimp"* ]]
 [[ "$catalogue" == *"jetbrains"* ]]
 [[ "$catalogue" == *"turbowarp"* ]]
-[[ "$catalogue" == *"appimage"* ]]\n[[ "$catalogue" == *"Dynamic entries"* ]]\nhelp_text="$(bash "$ROOT/bin/cbapp" help)"\n[[ "$help_text" == *"add-file"* ]]\n[[ "$help_text" == *"add-url"* ]]\n[[ "$help_text" == *"add-brew"* ]]\ngrep -Fq "cb_catalogue_add_file" "$ROOT/lib/catalogue.sh"\ngrep -Fq "cb_catalogue_add_url" "$ROOT/lib/catalogue.sh"\ngrep -Fq "brew install --cask" "$ROOT/lib/catalogue.sh"
+[[ "$catalogue" == *"appimage"* ]]\n[[ "$catalogue" == *"APPLICATION"* ]]\nhelp_text="$(bash "$ROOT/bin/cbapp" help)"\n[[ "$help_text" == *"add-file"* ]]\n[[ "$help_text" == *"add-url"* ]]\n[[ "$help_text" == *"add-brew"* ]]\ngrep -Fq "cb_catalogue_add_file" "$ROOT/lib/catalogue.sh"\ngrep -Fq "cb_catalogue_add_url" "$ROOT/lib/catalogue.sh"\ngrep -Fq "brew install --cask" "$ROOT/lib/catalogue.sh"
 
 # GIMP installer contract: pinned official ARM64 AppImage, checksum, and
 # dedicated non-overwriting user paths. These checks do not execute downloads.
