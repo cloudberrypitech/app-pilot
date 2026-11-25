@@ -26,6 +26,14 @@ cb_gui_install() {
             rows+=("$id" "$name")
         done < "$(cb_catalogue_db)"
     fi
+    if [[ -d "$CB_ROOT/downloads" ]]; then
+        for file in "$CB_ROOT"/downloads/*.AppImage "$CB_ROOT"/downloads/*.appimage; do
+            [[ -f "$file" ]] || continue
+            name="$(basename "$file")"
+            name="${name%.*}"
+            rows+=("$name" "Local package: $name")
+        done
+    fi
     selected="$(zenity --list --title="AppPilot — Install application" \
         --text="Choose an application to install" --width=620 --height=420 \
         --column="Application" --column="Description" "${rows[@]}" 2>/dev/null)" || return 0
